@@ -40,8 +40,13 @@ package com.axis.rtspclient {
 
       this.sdp = sdp;
 
+      Logger.log("GOT TO SET sdp");
+
+      /*
       if (sdp.getMediaBlock('video') && sdp.getMediaBlock('video').hasOwnProperty('fmtp')) {
-        /* Initial parameters must be taken from SDP file. Additional may be received as NAL */
+
+        Logger.log("START VIDEO SECTION");
+
         var sets:Array = sdp.getMediaBlock('video').fmtp['sprop-parameter-sets'].split(',');
         var sps:Base64Decoder = new Base64Decoder();
         var pps:Base64Decoder = new Base64Decoder();
@@ -49,9 +54,14 @@ package com.axis.rtspclient {
         pps.decode(sets[1]);
         this.sps = sps.toByteArray();
         this.pps = pps.toByteArray();
+
+        Logger.log("createVideoSpecificConfigTag");
+
         createVideoSpecificConfigTag();
       }
+      */
 
+      Logger.log("PRE AUDIO SECTION");
       if (sdp.getMediaBlock('audio')) {
         createAudioSpecificConfigTag(sdp.getMediaBlock('audio'));
       }

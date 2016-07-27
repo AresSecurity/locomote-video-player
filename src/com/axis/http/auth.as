@@ -34,6 +34,10 @@ package com.axis.http {
         return "";
       }
 
+      Logger.log(user + ':' + realm + ':' + pass);
+      Logger.log(httpmethod + ':' + uri);
+      Logger.log(qop ? "qop=true" : "qop=false");
+
       var ha1:String = MD5.hash(user + ':' + realm + ':' + pass);
       var ha2:String = MD5.hash(httpmethod + ':' + uri);
       var cnonce:String = MD5.hash(GUID.create());
@@ -48,7 +52,7 @@ package com.axis.http {
         'realm="' + realm + '", ' +
         'nonce="' + nonce + '", ' +
         'uri="' + uri + '", ' +
-        'nc="' + nc + '", ' +
+        /*'nc="' + nc + '", ' +*/
         (qop ? ('qop="' + qop + '", ') : '') +
         (qop ? ('cnonce="' + cnonce + '", ') : '') +
         'response="' + resp + '"'
@@ -56,6 +60,7 @@ package com.axis.http {
     }
 
     public static function nextMethod(current:String, authOpts:Object):String {
+      /*return 'basic';*/
       switch (current) {
         case 'none':
           /* No authorization attempt yet, try with the best method supported by server */
@@ -67,7 +72,7 @@ package com.axis.http {
 
         case 'digest':
           /* Weird to get unauthorized here unless credentials are invalid.
-             On the off-chance of server-bug, try basic aswell */
+             On the off-chance of server-bug, try basic as well */
           if (authOpts.basicRealm)
             return 'basic';
 
@@ -93,12 +98,13 @@ package com.axis.http {
           break;
 
         case "digest":
+          var u:String = 'rtsp://' + urlParsed.host + ':' + urlParsed.port + urlParsed.urlpath;
           content = digest(
             urlParsed.user,
             urlParsed.pass,
             method,
             authOpts.digestRealm,
-            urlParsed.urlpath,
+            u,
             authOpts.qop,
             authOpts.nonce,
             digestNC
@@ -110,6 +116,7 @@ package com.axis.http {
           return "";
       }
 
+      Logger.log("Authorization: " + content + "\r\n");
       return "Authorization: " + content + "\r\n"
     }
   }

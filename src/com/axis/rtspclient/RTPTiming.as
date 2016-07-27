@@ -1,5 +1,6 @@
 package com.axis.rtspclient {
   import flash.utils.ByteArray;
+  import com.axis.Logger;
 
   public class RTPTiming {
 
@@ -39,12 +40,21 @@ package com.axis.rtspclient {
     public static function parse(rtpInfo:String, range:String):RTPTiming {
       var rtpTime:Object = {};
       for each (var track:String in rtpInfo.split(',')) {
-        var rtpTimeMatch:Object = /^.*url=([^;]*);.*rtptime=(\d+).*$/.exec(track);
-        rtpTime[rtpTimeMatch[1]] = parseInt(rtpTimeMatch[2]);
+        if(track != "") {
+          var rtpTimeMatch:Object = /^.*url=([^;]*);.*rtptime=(\d+).*$/.exec(track);
+          Logger.log(rtpTimeMatch[1]);
+          Logger.log(rtpTimeMatch[2]);
+          rtpTime[rtpTimeMatch[1]] = parseInt(rtpTimeMatch[2]);
+        }
       }
+
       var rangeMatch:Object = /^npt=(.*)-(.*)$/.exec(range);
       var rangeFrom:String = rangeMatch[1];
       var rangeTo:String = rangeMatch[2];
+
+      Logger.log("RangeFrom: " + rangeFrom);
+      Logger.log("RangeTo: " + rangeTo);
+
       var from:Number = 0;
       var to:Number = rangeTo.length > 0 ? Math.round(parseFloat(rangeTo) * 1000) : -1;
       var live:Boolean = rangeFrom == 'now';

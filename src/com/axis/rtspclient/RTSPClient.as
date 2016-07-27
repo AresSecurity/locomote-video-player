@@ -85,6 +85,8 @@ package com.axis.rtspclient {
       this.handle = handle;
       this.urlParsed = urlParsed;
 
+      Logger.log(urlParsed);
+
       handle.addEventListener('data', this.onData);
     }
 
@@ -345,6 +347,7 @@ package com.axis.rtspclient {
       if (401 === parsed.code) {
         /* Unauthorized, change authState and (possibly) try again */
         authOpts = parsed.headers['www-authenticate'];
+        Logger.log(authOpts);
 
         if (authOpts.stale && authOpts.stale.toUpperCase() === 'TRUE') {
           requestReset();
@@ -362,7 +365,8 @@ package com.axis.rtspclient {
         authState = newAuthState;
         state = STATE_INITIAL;
         data = new ByteArray();
-        handle.reconnect();
+        sendDescribeReq();
+        /*handle.reconnect();*/
         return false;
       }
 
@@ -392,6 +396,8 @@ package com.axis.rtspclient {
       if (false === (parsed = readRequest(body))) {
         return;
       }
+
+      Logger.log(body);
 
       if (200 !== parsed.code) {
         ErrorManager.dispatchError(parsed.code);
@@ -475,7 +481,9 @@ package com.axis.rtspclient {
         state = STATE_PLAYING;
         /* Get range from RTSP header or SDP session block */
         var RTPrange = parsed.headers['range'] || this.sdp.getSessionBlock().range;
+        Logger.log(RTPrange);
         rtpTiming = RTPTiming.parse(parsed.headers['rtp-info'], RTPrange);
+        Logger.log("Got rtpTiming");
 
         if (this.flvmux) {
           /* If the flvmux have been initialized don't do it again.
@@ -486,10 +494,18 @@ package com.axis.rtspclient {
         /* Set actual offset from the stream */
         this.startOptions.offset = rtpTiming.range.from;
 
+        Logger.log("Set offset");
+        var jsonString:String = JSON.stringify(this.sdp);
+        Logger.log(jsonString);
+
         this.flvmux = new FLVMux(this.sdp);
+        Logger.log("new FLVMux(this.sdp)");
         var analu:ANALU = new ANALU();
+        Logger.log("new ANALU()");
         var aaac:AAAC = new AAAC(sdp);
+        Logger.log("new AAAC(sdp)");
         var apcma:APCMA = new APCMA();
+        Logger.log("new APCMA()");
 
         this.addEventListener("VIDEO_H264_PACKET", analu.onRTPPacket);
         this.addEventListener("AUDIO_MPEG4-GENERIC_PACKET", aaac.onRTPPacket);
@@ -497,6 +513,8 @@ package com.axis.rtspclient {
         analu.addEventListener(NALU.NEW_NALU, flvmux.onNALU);
         aaac.addEventListener(AACFrame.NEW_FRAME, flvmux.onAACFrame);
         apcma.addEventListener(PCMAFrame.NEW_FRAME, flvmux.onPCMAFrame);
+
+        Logger.log("Added event listeners");
 
         if (this.sdp.getMediaBlockList().length == 2) {
           var flvSync:FLVSync = new FLVSync();
@@ -508,11 +526,13 @@ package com.axis.rtspclient {
         }
 
         /* Start Keep-alive routine */
-        if (Player.config.keepAlive) {
+
+        /*
+          Logger.log("KEEP_ALIVE");
           kaTimer.reset();
           kaTimer.addEventListener(TimerEvent.TIMER, keepAlive);
           kaTimer.start();
-        }
+        */
 
         break;
 
@@ -590,10 +610,10 @@ package com.axis.rtspclient {
       if (url.isAbsolute(block.control)) {
         return block.control;
       } else if (url.isAbsolute(sessionBlock.control + block.control)) {
-        return sessionBlock.control + block.control;
+        return sessionBlock.control + "/" + block.control;
       } else if (url.isAbsolute(contentBase + block.control)) {
         /* Should probably check session level control before this */
-        return contentBase + block.control;
+        return contentBase + "/" +  block.control;
       }
 
       Logger.log('Can\'t determine track URL from ' +
@@ -635,14 +655,15 @@ package com.axis.rtspclient {
 
     private function sendDescribeReq():void {
       state = STATE_DESCRIBE;
-      var u:String = 'rtsp://' + urlParsed.host + urlParsed.urlpath;
+      var u:String = 'rtsp://' + urlParsed.host + ':' + urlParsed.port + urlParsed.urlpath;
       var req:String =
         "DESCRIBE " + u + " RTSP/1.0\r\n" +
         "CSeq: " + (++cSeq) + "\r\n" +
-        "User-Agent: " + userAgent + "\r\n" +
-        "Accept: application/sdp\r\n" +
         auth.authorizationHeader("DESCRIBE", authState, authOpts, urlParsed, digestNC++) +
+        "User-Agent: " + userAgent + "\r\n" +
+        "Accept: application/sdp" + "\r\n" +
         "\r\n";
+
       handle.writeUTFBytes(req);
       Logger.log('RTSP OUT:', req);
 
@@ -674,13 +695,16 @@ package com.axis.rtspclient {
       var req:String =
         "PLAY " + getControlURL() + " RTSP/1.0\r\n" +
         "CSeq: " + (++cSeq) + "\r\n" +
+        auth.authorizationHeader("PLAY", authState, authOpts, urlParsed, digestNC++) +
         "User-Agent: " + userAgent + "\r\n" +
         "Session: " + session + "\r\n";
       if (offset >= 0) {
-        req += "Range: npt=" + (offset / 1000) + "-\r\n";
+        req += "Range: npt=" + (offset / 1000) + "-\r\n" + "\r\n";
       }
-      req += auth.authorizationHeader("PLAY", authState, authOpts, urlParsed, digestNC++) +
-        "\r\n";
+      else {
+        req += "Range: npt=now-\r\n" + "\r\n";
+      }
+
       handle.writeUTFBytes(req);
       Logger.log('RTSP OUT:', req);
 
